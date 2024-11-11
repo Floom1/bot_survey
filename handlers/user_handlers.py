@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.filters import Command, CommandObject
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import Message, CallbackQuery
 
 import requests
@@ -14,8 +14,8 @@ from keyboards.survey_kb import create_survey_keyboard
 router = Router()
 
 
-@router.message(Command("start"))
-async def process_start_command(message: Message, command: CommandObject):
+@router.message(CommandStart(deep_link=True))
+async def process_start_deep_link_command(message: Message, command: CommandObject):
     args = command.args
     if not args.isdigit():
         await message.answer("Неверный ID встречи.")
@@ -26,6 +26,14 @@ async def process_start_command(message: Message, command: CommandObject):
     await message.answer(
         text=LEXICON['/start'],
         reply_markup=create_survey_keyboard(unique_id)
+    )
+
+
+@router.message(CommandStart())
+@router.message(Command("help"))
+async def process_start_command(message: Message):
+    await message.answer(
+        "Этот бот позволяет оценивать обслуживаение сотрудников ДГИ.\n\nБот сам пришлет опрос после встречи."
     )
 
 
@@ -41,7 +49,9 @@ async def process_start_command(message: Message, command: CommandObject):
 @router.message(Command("gen_qr"), IsEmployeeFilter())
 async def generate_qr_code_handler(message: Message):
     unique_id = generate_unique_id()
-    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=t.me/fit_sport1_bot?start={unique_id}"
+
+    bot_info = await message.bot.get_me()
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=t.me/{bot_info.username}?start={unique_id}"
 
     try:
         response = requests.get(qr_url)
